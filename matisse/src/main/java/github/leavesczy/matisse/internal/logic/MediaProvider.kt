@@ -70,7 +70,6 @@ internal object MediaProvider {
         return withContext(context = Dispatchers.Default) {
             val idColumn = MediaStore.MediaColumns._ID
             val pathColumn = MediaStore.MediaColumns.DATA
-            val sizeColumn = MediaStore.MediaColumns.SIZE
             val displayNameColumn = MediaStore.MediaColumns.DISPLAY_NAME
             val mineTypeColumn = MediaStore.MediaColumns.MIME_TYPE
             val bucketIdColumn = MediaStore.MediaColumns.BUCKET_ID
@@ -79,7 +78,6 @@ internal object MediaProvider {
             val projection = arrayOf(
                 idColumn,
                 pathColumn,
-                sizeColumn,
                 displayNameColumn,
                 mineTypeColumn,
                 bucketIdColumn,
@@ -89,20 +87,19 @@ internal object MediaProvider {
             val sortOrder = "$dateModifiedColumn DESC"
             val mediaResourceList = mutableListOf<MediaInfo>()
             try {
-                val mediaCursor = context.contentResolver.query(
+                val cursor = context.contentResolver.query(
                     contentUri,
                     projection,
                     selection,
                     selectionArgs,
                     sortOrder,
                 ) ?: return@withContext null
-                mediaCursor.use { cursor ->
+                cursor.use { cursor ->
                     while (cursor.moveToNext()) {
                         val defaultId = Long.MAX_VALUE
                         val id = cursor.getLong(idColumn, defaultId)
                         val path = cursor.getString(pathColumn, "")
-                        val size = cursor.getLong(sizeColumn, 0)
-                        if (id == defaultId || path.isBlank() || size <= 0) {
+                        if (id == defaultId || path.isBlank()) {
                             continue
                         }
                         val file = File(path)
@@ -114,17 +111,16 @@ internal object MediaProvider {
                         val bucketId = cursor.getString(bucketIdColumn, "")
                         val bucketName = cursor.getString(bucketDisplayNameColumn, "")
                         val uri = ContentUris.withAppendedId(contentUri, id)
-                        mediaResourceList.add(
-                            element = MediaInfo(
-                                mediaId = id,
-                                bucketId = bucketId,
-                                bucketName = bucketName,
-                                path = path,
-                                uri = uri,
-                                name = name,
-                                mimeType = mimeType
-                            )
+                        val mediaInfo = MediaInfo(
+                            mediaId = id,
+                            bucketId = bucketId,
+                            bucketName = bucketName,
+                            path = path,
+                            uri = uri,
+                            name = name,
+                            mimeType = mimeType
                         )
+                        mediaResourceList.add(element = mediaInfo)
                     }
                 }
             } catch (throwable: Throwable) {
